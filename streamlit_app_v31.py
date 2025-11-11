@@ -1384,7 +1384,6 @@ def main():
     manual_products_df_display = st.data_editor(
         display_products,
         num_rows="dynamic",
-        width="1000",
         key="manual_push_products"
     )
     # Convert back to internal column names for later processing
