@@ -657,7 +657,6 @@ def load_platform_catalog(xlsx_path: str | None = None) -> pd.DataFrame:
             else:
                 df = pd.read_excel(path, engine="openpyxl")
             if not df.empty:
-                st.success("✅ Product catalog loaded successfully.")
                 return df
         except Exception as e:
             st.warning(f"⚠️ Could not read product file '{path}': {e}")
