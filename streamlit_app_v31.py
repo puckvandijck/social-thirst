@@ -1385,7 +1385,7 @@ def main():
         display_products,
         num_rows="dynamic",
         column_config={
-            "Naam": st.column_config.TextColumn(width="medium"),
+            "Naam": st.column_config.TextColumn(width="large"),
             "Beschrijving": st.column_config.TextColumn(width="large"),
         },
         key="manual_push_products"
