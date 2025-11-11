@@ -1,0 +1,18 @@
+# Virtual environments
+.venv/
+
+# Cache / build files
+__pycache__/
+*.pyc
+
+# Local data & brand files
+Brand book/
+TT analytics/
+Old streamlits/
+*.xlsx
+*.csv
+*.docx
+
+# OS files
+.DS_Store
+
