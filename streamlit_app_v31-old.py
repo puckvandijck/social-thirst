@@ -43,11 +43,19 @@ fetch live trends from Apify; if the token is missing, stub data will be used.
 import os
 import regex as re
 from collections import Counter
-from typing import List, Dict, Optional, Any, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 import streamlit as st
+# Map Streamlit secrets to environment variables (for cloud & local parity)
+import os
+try:
+    for _k in ("OPENAI_API_KEY", "APIFY_API_TOKEN"):
+        if _k in st.secrets and st.secrets[_k] and not os.environ.get(_k):
+            os.environ[_k] = st.secrets[_k]
+except Exception:
+    pass
 from docx import Document
 from docx.shared import Pt
 
@@ -93,12 +101,12 @@ TRANSLATIONS = {
         "generate_button": "Genereer ideeën",
         "err_upload_one": "Upload minstens één analytics-bestand.",
         "err_no_videos": "Geen videobestand gevonden in de uploads.",
-        "ideas_header": "💡 Gegenereerde contentideeën",
-        "live_hashtags": "🔍 Live trending hashtags (Scraped)",
-        "live_sounds": "🎵 Live trending sounds (Scraped)",
+        "ideas_header": "Gegenereerde contentideeën",
+        "live_hashtags": "Live trending hashtags (Scraped)",
+        "live_sounds": "Live trending sounds (Scraped)",
         "main_trend_focus": "Hoofdtrend om op te focussen",
-        "performing_tags": "🚀 Presterende hashtags uit je data",
-        "upload_brandbook": "📥 Upload Masterbrand Data",
+        "performing_tags": "Presterende hashtags uit je data",
+        "upload_brandbook": "Upload Masterbrand Data",
         "apify_missing": "Apify niet beschikbaar in deze omgeving.",
         "apify_no_token": "Geen Apify token gevonden. Stel APIFY_API_TOKEN in.",
         "openai_key_missing": "OPENAI_API_KEY is niet ingesteld. Kan brand book niet analyseren.",
@@ -160,12 +168,12 @@ TRANSLATIONS = {
         "generate_button": "Generate ideas",
         "err_upload_one": "Please upload at least one analytics file.",
         "err_no_videos": "No video sheet found in the uploads.",
-        "ideas_header": "💡 Generated content ideas",
-        "live_hashtags": "🔍 Live trending hashtags (Scraped)",
-        "live_sounds": "🎵 Live trending sounds (Scraped)",
+        "ideas_header": "Generated content ideas",
+        "live_hashtags": "Live trending hashtags (Scraped)",
+        "live_sounds": "Live trending sounds (Scraped)",
         "main_trend_focus": "Main trend to focus on",
-        "performing_tags": "🚀 Top-performing hashtags from your data",
-        "upload_brandbook": "📥 Upload Masterbrand Data",
+        "performing_tags": "Top-performing hashtags from your data",
+        "upload_brandbook": "Upload Masterbrand Data",
         "apify_missing": "Apify is not available in this environment.",
         "apify_no_token": "No Apify token found. Please set APIFY_API_TOKEN.",
         "openai_key_missing": "OPENAI_API_KEY is not set. Cannot analyze brand book.",
@@ -297,126 +305,6 @@ def filter_trending_hashtags(tags: List[str], niche: str) -> List[str]:
             if any(word in tag_name for word in ["event", "festival", "party", "feest", "fest"]):
                 filtered.append(tag)
     return filtered
-
-# -----------------------------------------------------------------------------
-# New helper: semantic filtering of trending hashtags
-#
-# This function ranks candidate trending hashtags according to how semantically
-# similar they are to a description of the brand and its niche. It uses
-# OpenAI's embedding API to embed both the brand description and each tag into
-# a shared vector space and then scores tags by cosine similarity. If the
-# embedding API is unavailable or an error occurs, the function returns an
-# empty list so that callers can fall back to heuristic filtering.
-def filter_trending_hashtags_semantic(
-    tags: List[str],
-    brand_cfg: Dict[str, Any] | None,
-    niche: str,
-    top_n: int = 10,
-) -> List[str]:
-    """Rank trending hashtags by semantic similarity to the brand and niche.
-
-    Parameters
-    ----------
-    tags: List[str]
-        Candidate trending hashtags (with or without a leading ``#``).
-    brand_cfg: Optional[Dict[str, Any]]
-        Partial brand configuration. At minimum it may include the key ``"brand"``
-        specifying the brand name. Optional keys ``"tone"`` and ``"must"`` (a
-        list of keywords) provide extra context. If ``None`` or missing keys,
-        they are ignored.
-    niche: str
-        The high‑level niche (e.g. "Hair Care", "Body Care", "Beauty").
-    top_n: int
-        Maximum number of tags to return. Defaults to 10.
-
-    Returns
-    -------
-    List[str]
-        The top ``top_n`` hashtags sorted by descending semantic similarity.
-        Returns an empty list if embeddings cannot be computed.
-    """
-    # Guard against empty input
-    if not tags:
-        return []
-
-    # Attempt to import the OpenAI client; if unavailable, bail out silently
-    try:
-        from openai import OpenAI  # type: ignore
-    except Exception:
-        return []
-
-    import os
-    import numpy as _np
-
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        return []
-
-    # Compose a short description of the brand and niche. We include the brand
-    # name, the niche and optionally the tone and must keywords. Avoid words
-    # are not included because the goal is to find positive semantic matches.
-    desc_parts: List[str] = []
-    if brand_cfg:
-        b_name = str(brand_cfg.get("brand", "")).strip()
-        if b_name:
-            desc_parts.append(b_name)
-        tone = str(brand_cfg.get("tone", "")).strip()
-        if tone:
-            desc_parts.append(tone)
-        must = brand_cfg.get("must", []) or []
-        if isinstance(must, list) and must:
-            desc_parts.append(" ".join(map(str, must)))
-    if niche:
-        desc_parts.append(str(niche))
-    brand_desc = " ".join(desc_parts).strip()
-    if not brand_desc:
-        brand_desc = niche or ""
-
-    # Prepare tag texts without the '#' prefix for embedding. The original
-    # versions of the tags are preserved for output.
-    plain_tags: List[str] = []
-    for tag in tags:
-        text = str(tag).strip()
-        if text.startswith("#"):
-            text = text[1:]
-        plain_tags.append(text)
-
-    # Build input list: brand description followed by each plain tag. Note that
-    # OpenAI's embedding endpoint accepts a list of strings and returns
-    # embeddings in the same order.
-    embedding_inputs = [brand_desc] + plain_tags
-
-    try:
-        client = OpenAI(api_key=api_key)
-        result = client.embeddings.create(
-            model="text-embedding-3-small",
-            input=embedding_inputs,
-        )
-        embeddings = [item.embedding for item in result.data]
-        brand_vec = embeddings[0]
-        tag_vecs = embeddings[1:]
-        # Precompute norm of brand vector
-        brand_norm = _np.linalg.norm(brand_vec)
-        scored: List[Tuple[str, float]] = []
-        for original_tag, vec in zip(tags, tag_vecs):
-            vec_norm = _np.linalg.norm(vec)
-            if brand_norm == 0 or vec_norm == 0:
-                score = -1.0
-            else:
-                score = float(_np.dot(brand_vec, vec) / (brand_norm * vec_norm))
-            scored.append((original_tag, score))
-        # Sort tags by similarity descending and collect unique top_n
-        scored.sort(key=lambda x: x[1], reverse=True)
-        selected: List[str] = []
-        for tag, _score in scored:
-            if tag and tag not in selected:
-                selected.append(tag)
-            if len(selected) >= top_n:
-                break
-        return selected
-    except Exception:
-        # On any exception, gracefully return empty so heuristics can apply
-        return []
 
 
 def detect_file_type(df: pd.DataFrame) -> str:
@@ -1094,6 +982,7 @@ def clean_pdf_text(text: str) -> str:
 def parse_brandbook(brandbook_file, brand_name: str = "Onbekend") -> Dict[str, List[str]]:
     """Extract tone, must/avoid words, and brand essence from a brand book PDF using GPT."""
     if not brandbook_file:
+        # No upload — just return empty/default config
         return {"tone": "", "must": [], "avoid": []}
 
     # --- Step 1: Read and clean PDF text ---
@@ -1319,9 +1208,7 @@ def main():
         # (Optional) keep it around for later use elsewhere too
         st.session_state["low_budget"] = low_budget
 
-
-
-    # --- File uploads ---
+    # upload docs
     st.subheader(t("upload_brandbook"))
 
     # --- Analytics file uploader (optional) ---
@@ -1384,7 +1271,7 @@ def main():
     manual_products_df_display = st.data_editor(
         display_products,
         num_rows="dynamic",
-        width="stretch",
+        width=1000,
         key="manual_push_products"
     )
     # Convert back to internal column names for later processing
@@ -1418,7 +1305,7 @@ def main():
 
     # --- Main button ---
     if st.button(t("generate_button")):
-        # --- Handle analytics uploads (optional) ---
+    # --- Handle analytics uploads (optional) ---
         if analytics_files:
             video_df, overview_df, audience_df = load_analytics(analytics_files)
             if video_df.empty:
@@ -1514,7 +1401,7 @@ def main():
                 df_tags = df_tags.rename(columns={"Gemiddelde successcore": t("average_success_score")})
             st.dataframe(df_tags)
         else:
-            st.info("Geen merk data aangeleverd." if get_lang() == "nl" else "No brand data uploaded.")
+            st.info("Geen presterende hashtags geanalyseerd uit eigen kanaal." if get_lang() == "nl" else "No top-performing hashtags analysed for brand channel.")
 
         # --- Show live trends (only when no manual main trend is given) ---
         if not main_trend_focus or not main_trend_focus.strip():
@@ -1554,28 +1441,8 @@ def main():
             ]
 
         # --- Determine trending hashtags to include in the prompt ---
-        # First attempt semantic filtering using OpenAI embeddings. This ranks
-        # live hashtags by their semantic similarity to the brand and niche. If
-        # semantic filtering fails (no API key, no tags, or an error), fall
-        # back to the original heuristic filter. As a last resort, use the
-        # performing tags derived from the brand's own analytics.
-        semantic_tags: List[str] = []
-        try:
-            # Provide minimal brand context for semantic filtering. Use the
-            # selected brand name so that the embeddings capture brand identity.
-            semantic_tags = filter_trending_hashtags_semantic(
-                live_hashtags,
-                {"brand": brand},
-                niche,
-                top_n=10,
-            )
-        except Exception:
-            semantic_tags = []
-        if semantic_tags:
-            filtered_trending_tags = semantic_tags
-        else:
-            # Filter live hashtags for relevancy to the niche and remove banned topics
-            filtered_trending_tags = filter_trending_hashtags(live_hashtags, niche)
+        # Filter live hashtags for relevancy to the niche and remove banned topics
+        filtered_trending_tags = filter_trending_hashtags(live_hashtags, niche)
         if filtered_trending_tags:
             trending_for_prompt = filtered_trending_tags[:10]
         else:
