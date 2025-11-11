@@ -298,6 +298,20 @@ def filter_trending_hashtags(tags: List[str], niche: str) -> List[str]:
                 filtered.append(tag)
     return filtered
 
+
+def read_uploaded_file(uploaded_file):
+    import pandas as pd
+    if uploaded_file is None:
+        return None
+    filename = uploaded_file.name.lower()
+    if filename.endswith(".csv"):
+        return pd.read_csv(uploaded_file)
+    elif filename.endswith(".xlsx") or filename.endswith(".xls"):
+        return pd.read_excel(uploaded_file)
+    else:
+        return None
+
+
 # -----------------------------------------------------------------------------
 # New helper: semantic filtering of trending hashtags
 #
