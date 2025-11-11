@@ -102,8 +102,8 @@ TRANSLATIONS = {
         "err_upload_one": "Upload minstens één analytics-bestand.",
         "err_no_videos": "Geen videobestand gevonden in de uploads.",
         "ideas_header": "Gegenereerde contentideeën",
-        "live_hashtags": "Live trending hashtags (Apify)",
-        "live_sounds": "Live trending sounds (Apify)",
+        "live_hashtags": "Live trending hashtags (Scraped)",
+        "live_sounds": "Live trending sounds (Scraped)",
         "main_trend_focus": "Hoofdtrend om op te focussen",
         "performing_tags": "Presterende hashtags uit je data",
         "upload_brandbook": "Upload Masterbrand Data",
@@ -169,8 +169,8 @@ TRANSLATIONS = {
         "err_upload_one": "Please upload at least one analytics file.",
         "err_no_videos": "No video sheet found in the uploads.",
         "ideas_header": "Generated content ideas",
-        "live_hashtags": "Live trending hashtags (Apify)",
-        "live_sounds": "Live trending sounds (Apify)",
+        "live_hashtags": "Live trending hashtags (Scraped)",
+        "live_sounds": "Live trending sounds (Scraped)",
         "main_trend_focus": "Main trend to focus on",
         "performing_tags": "Top-performing hashtags from your data",
         "upload_brandbook": "Upload Masterbrand Data",
@@ -982,7 +982,7 @@ def clean_pdf_text(text: str) -> str:
 def parse_brandbook(brandbook_file, brand_name: str = "Onbekend") -> Dict[str, List[str]]:
     """Extract tone, must/avoid words, and brand essence from a brand book PDF using GPT."""
     if not brandbook_file:
-        st.info("Geen brand book geüpload. Gebruik standaard merktoon.")
+        # No upload — just return empty/default config
         return {"tone": "", "must": [], "avoid": []}
 
     # --- Step 1: Read and clean PDF text ---
@@ -1351,8 +1351,6 @@ def main():
                 "Apify-trends worden genegeerd."
             )
         else:
-            # No manual trend → automatically use live Apify trends
-            st.info(t("no_main_trend_message"))
             # Localized spinner message
             with st.spinner(f"{t('fetching_trends_message')} {region}..."):
                 hashtags_data, sounds_data = fetch_apify_trends(region, time_range=selected_time_range)
@@ -1386,7 +1384,7 @@ def main():
         live_hashtags = cleaned_hashtags
 
 
-        st.info(f"✅ Filtered to {len(hashtags_data)} Latin hashtags (from {len(cleaned_hashtags)}).")
+        print(f"✅ Filtered to {len(hashtags_data)} Latin hashtags (from {len(cleaned_hashtags)}).")
 
 
 
@@ -1403,7 +1401,7 @@ def main():
                 df_tags = df_tags.rename(columns={"Gemiddelde successcore": t("average_success_score")})
             st.dataframe(df_tags)
         else:
-            st.info("Geen presterende hashtags gevonden." if get_lang() == "nl" else "No top-performing hashtags found.")
+            st.info("Geen presterende hashtags geanalyseerd uit eigen kanaal." if get_lang() == "nl" else "No top-performing hashtags analysed for brand channel.")
 
         # --- Show live trends (only when no manual main trend is given) ---
         if not main_trend_focus or not main_trend_focus.strip():
