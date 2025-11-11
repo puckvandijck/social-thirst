@@ -1208,9 +1208,7 @@ def main():
         # (Optional) keep it around for later use elsewhere too
         st.session_state["low_budget"] = low_budget
 
-
-
-    # --- File uploads ---
+    # upload docs
     st.subheader(t("upload_brandbook"))
 
     # --- Analytics file uploader (optional) ---
@@ -1221,16 +1219,12 @@ def main():
         help=t("select_files_help"),
     )
 
+    analytics_dataframes = []
     if analytics_files:
-        analytics_dataframes = []
         for uploaded_file in analytics_files:
             df = read_uploaded_file(uploaded_file)
             if df is not None:
                 analytics_dataframes.append(df)
-        st.success(f"{len(analytics_dataframes)} analytics file(s) uploaded.")
-    else:
-        st.info("No analytics files uploaded — continuing without them.")
-        analytics_dataframes = []
 
 
     # --- Brand book uploader (optional) ---
@@ -1240,10 +1234,6 @@ def main():
         help=t("upload_brand_book_help"),
     )
 
-    if brandbook_file:
-        st.success("Brand book uploaded successfully.")
-    else:
-        st.info("No brand book uploaded — continuing without it.")
 
     # --- 🧴 Product of range / platform keuze (optioneel) ---
     st.markdown("### " + t("product_push_title"))
