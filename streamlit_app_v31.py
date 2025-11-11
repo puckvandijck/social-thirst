@@ -299,17 +299,25 @@ def filter_trending_hashtags(tags: List[str], niche: str) -> List[str]:
     return filtered
 
 
+import pandas as pd
+import io
+
 def read_uploaded_file(uploaded_file):
-    import pandas as pd
     if uploaded_file is None:
         return None
     filename = uploaded_file.name.lower()
-    if filename.endswith(".csv"):
-        return pd.read_csv(uploaded_file)
-    elif filename.endswith(".xlsx") or filename.endswith(".xls"):
-        return pd.read_excel(uploaded_file)
-    else:
+    try:
+        if filename.endswith(".csv"):
+            return pd.read_csv(io.BytesIO(uploaded_file.getvalue()), encoding="utf-8", on_bad_lines="skip")
+        elif filename.endswith(".xlsx") or filename.endswith(".xls"):
+            return pd.read_excel(io.BytesIO(uploaded_file.getvalue()))
+        else:
+            st.warning(f"Unsupported file format for {filename}. Please upload CSV or XLSX.")
+            return None
+    except Exception as e:
+        st.warning(f"Unable to read {uploaded_file.name} as CSV or Excel.\nError: {e}")
         return None
+
 
 
 # -----------------------------------------------------------------------------
@@ -621,13 +629,25 @@ def clean_output_text(text: str) -> str:
 # helper product to push dropdown
 
 # ---- Load Andrélon platform catalog (cached) ----
+# ---- Load Andrélon platform catalog (cached) ----
 @st.cache_data(show_spinner=False)
 def load_platform_catalog(xlsx_path: str | None = None) -> pd.DataFrame:
     """Load the Andrelon platformen Excel, either uploaded or local fallback."""
     import pandas as pd
     import io
+    import os
 
-    candidates = [xlsx_path, "Andrelon platformen.xlsx", "andrelon_platformen.xlsx"]
+    candidates = []
+    # User upload first
+    if xlsx_path is not None:
+        candidates.append(xlsx_path)
+    # Then fallback filenames for local/cloud environments
+    candidates += [
+        "Andrelon platformen.xlsx",
+        "andrelon_platformen.xlsx",
+        os.path.join(os.getcwd(), "Andrelon platformen.xlsx"),
+    ]
+
     for path in candidates:
         if path is None:
             continue
@@ -637,12 +657,15 @@ def load_platform_catalog(xlsx_path: str | None = None) -> pd.DataFrame:
             else:
                 df = pd.read_excel(path, engine="openpyxl")
             if not df.empty:
+                st.success("✅ Product catalog loaded successfully.")
                 return df
         except Exception as e:
-            print(f"⚠️ Kon bestand niet lezen: {path} — {e}")
+            st.warning(f"⚠️ Could not read product file '{path}': {e}")
             continue
 
+    st.warning("⚠️ No valid Andrélon platform file found — using empty catalog.")
     return pd.DataFrame(columns=["Range", "SKU", "Description"])
+
 
 
 # -------------------------------
