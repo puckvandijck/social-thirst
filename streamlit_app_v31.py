@@ -1387,6 +1387,8 @@ def main():
         column_config={
             "Naam": st.column_config.TextColumn(width="large"),
             "Beschrijving": st.column_config.TextColumn(width="large"),
+            "Name": st.column_config.TextColumn(width="large"),
+            "Description": st.column_config.TextColumn(width="large"),
         },
         key="manual_push_products"
     )
