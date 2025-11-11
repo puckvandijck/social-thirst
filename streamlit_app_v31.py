@@ -1212,13 +1212,38 @@ def main():
 
     # --- File uploads ---
     st.subheader(t("upload_brandbook"))
+
+    # --- Analytics file uploader (optional) ---
     analytics_files = st.file_uploader(
-        t("select_files_label"), accept_multiple_files=True
-    )
-    brandbook_file = st.file_uploader(
-        t("upload_brand_book_label"), type=["pdf"]
+        t("select_files_label"),
+        type=["csv", "xlsx"],
+        accept_multiple_files=True,
+        help=t("select_files_help"),
     )
 
+    if analytics_files:
+        analytics_dataframes = []
+        for uploaded_file in analytics_files:
+            df = read_uploaded_file(uploaded_file)
+            if df is not None:
+                analytics_dataframes.append(df)
+        st.success(f"{len(analytics_dataframes)} analytics file(s) uploaded.")
+    else:
+        st.info("No analytics files uploaded — continuing without them.")
+        analytics_dataframes = []
+
+
+    # --- Brand book uploader (optional) ---
+    brandbook_file = st.file_uploader(
+        t("upload_brand_book_label"),
+        type=["pdf"],
+        help=t("upload_brand_book_help"),
+    )
+
+    if brandbook_file:
+        st.success("Brand book uploaded successfully.")
+    else:
+        st.info("No brand book uploaded — continuing without it.")
 
     # --- 🧴 Product of range / platform keuze (optioneel) ---
     st.markdown("### " + t("product_push_title"))
