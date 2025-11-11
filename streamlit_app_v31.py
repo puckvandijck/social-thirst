@@ -1305,24 +1305,34 @@ def main():
 
     # --- Main button ---
     if st.button(t("generate_button")):
-        if not analytics_files:
-            st.error(t("err_upload_one"))
-            return
-
-        video_df, overview_df, audience_df = load_analytics(analytics_files)
-        if video_df.empty:
-            st.error(t("err_no_videos"))
-            return
+    # --- Handle analytics uploads (optional) ---
+        if analytics_files:
+            video_df, overview_df, audience_df = load_analytics(analytics_files)
+            if video_df.empty:
+                st.warning(t("err_no_videos"))
+                video_df = pd.DataFrame()
+                overview_df = pd.DataFrame()
+                audience_df = pd.DataFrame()
+        else:
+            # No uploads — use empty placeholders
+            video_df = pd.DataFrame()
+            overview_df = pd.DataFrame()
+            audience_df = pd.DataFrame()
 
         norm_video_df = normalise_video_df(video_df)
         brand_cfg = parse_brandbook(brandbook_file, brand)
 
         # --- Extract performing tags from own data ---
-        performing_tags = extract_performing_hashtags(norm_video_df, top_n=10)
-        performing_tag_names = [t[0] for t in performing_tags]
+        performing_tags = []
+        performing_tag_names = []
+
+        if not video_df.empty:
+            performing_tags = extract_performing_hashtags(norm_video_df, top_n=10)
+            performing_tag_names = [t[0] for t in performing_tags]
 
         live_hashtags: List[str] = []
         live_sounds: List[Dict[str, str]] = []
+
 
         # The performing hashtags have already been displayed above; avoid duplicate display.
 
