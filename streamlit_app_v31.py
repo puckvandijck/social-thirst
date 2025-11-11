@@ -1384,8 +1384,13 @@ def main():
     manual_products_df_display = st.data_editor(
         display_products,
         num_rows="dynamic",
+        column_config={
+            "Naam": st.column_config.TextColumn(width="medium"),
+            "Beschrijving": st.column_config.TextColumn(width="large"),
+        },
         key="manual_push_products"
     )
+
     # Convert back to internal column names for later processing
     manual_products_df = manual_products_df_display.rename(
         columns={t("product_name"): "Naam", t("product_description"): "Beschrijving"}
